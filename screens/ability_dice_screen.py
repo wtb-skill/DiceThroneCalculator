@@ -7,76 +7,98 @@ from kivy.uix.label import Label
 from kivy.uix.checkbox import CheckBox
 from kivy.uix.textinput import TextInput
 from kivy.uix.image import Image
+from kivy.uix.floatlayout import FloatLayout
+from kivy.clock import Clock
+import os
+
 from data.characters import CHARACTERS
 from logic.queries.advisor_wrapper import AdvisorLogic
-from kivy.clock import Clock
-from kivy.uix.floatlayout import FloatLayout
-import os
 
 
 class AbilityDiceScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._suppress_dice_events = False
+        self.dice_inputs = []
+        self.ability_checks = {}
 
-        # Main layout inside the Screen
+        # Build the UI
+        self.build_ui()
+
+    # ---------------- UI BUILD ----------------
+    def build_ui(self):
+        """Constructs the main layout"""
         main_layout = BoxLayout(orientation='horizontal')
 
-        # ----- Left Column: Abilities -----
-        self.left_col = BoxLayout(orientation='vertical', size_hint_x=0.3)
+        # Left column: back button + abilities
+        self.left_col = self.build_left_side()
+        main_layout.add_widget(self.left_col)
+
+        # Right column: background image + foreground controls
+        self.right_col = self.build_right_side()
+        main_layout.add_widget(self.right_col)
+
+        self.add_widget(main_layout)
+
+    def build_left_side(self):
+        """Constructs left column with back button and scrollable abilities"""
+        left_col = BoxLayout(orientation='vertical', size_hint_x=0.3)
 
         # Back button at top
-        images_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'images', 'misc')
-        back_image_file = os.path.join(images_path, 'back_arrow_left_red.png')
-
-        if not os.path.exists(back_image_file):
-            print(f"Warning: back image not found: {back_image_file}")
-            self.back_btn = Button(text="Back")  # fallback
-        else:
+        back_image_file = os.path.join("images", "misc", "back_arrow_left_red.png")
+        if os.path.exists(back_image_file):
             self.back_btn = Button(
                 background_normal=back_image_file,
                 background_down=back_image_file,
                 size_hint=(None, None),
                 size=(60, 60),
-                border=(0, 0, 0, 0)  # remove default Kivy button borders
+                border=(0, 0, 0, 0)
             )
-
+        else:
+            self.back_btn = Button(text="Back")
         self.back_btn.bind(on_press=self.go_back_to_character_selection)
-        self.left_col.add_widget(self.back_btn)
+        left_col.add_widget(self.back_btn)
 
         # Scrollable abilities list
         self.scroll = ScrollView()
         self.ability_layout = GridLayout(cols=1, size_hint_y=None)
         self.ability_layout.bind(minimum_height=self.ability_layout.setter('height'))
         self.scroll.add_widget(self.ability_layout)
-        self.left_col.add_widget(self.scroll)
-        self.ability_checks = {}
+        left_col.add_widget(self.scroll)
 
-        # ----- Right Column: background image + foreground UI -----
-        self.right_col = FloatLayout(size_hint_x=0.7)
+        return left_col
+
+    def build_right_side(self):
+        """Constructs right column with background image and foreground controls"""
+        right_col = FloatLayout(size_hint_x=0.7)
 
         # Character background image
         self.char_image = Image(
-            allow_stretch=True,  # allows scaling
-            keep_ratio=False,  # disables maintaining aspect ratio so it fills container
-            size_hint=(1, 1),  # take full width and height of right_col
-            pos_hint={'x': 0, 'y': 0}  # position at bottom-left corner
+            allow_stretch=True,
+            keep_ratio=False,
+            size_hint=(1, 1),
+            pos_hint={'x': 0, 'y': 0}
         )
-        self.right_col.add_widget(self.char_image, index=0)  # add at bottom so other widgets are on top
+        right_col.add_widget(self.char_image, index=0)
 
-        # Foreground UI container inside right column (anchored at bottom)
+        # Foreground controls at bottom
         self.foreground_layout = BoxLayout(
             orientation='vertical',
             size_hint=(0.8, None),
             height=250,
             spacing=10,
-            pos_hint={'center_x': 0.5, 'y': 0}  # Anchored at bottom now
+            pos_hint={'center_x': 0.5, 'y': 0}
         )
+        self.build_foreground_controls()
+        right_col.add_widget(self.foreground_layout)
 
-        # Dice input layout
+        return right_col
+
+    def build_foreground_controls(self):
+        """Adds dice input, results label, and analyze button to foreground layout"""
+        # Dice inputs
         self.dice_layout = BoxLayout(orientation='horizontal', spacing=5)
-        self.dice_inputs = []
-        for _ in range(5):
+        for i in range(5):
             ti = TextInput(
                 multiline=False,
                 input_filter='int',
@@ -85,13 +107,9 @@ class AbilityDiceScreen(Screen):
                 text_validate_unfocus=False
             )
             ti.bind(size=lambda inst, val: setattr(inst, 'padding_y', [(inst.height - inst.line_height) / 2]))
+            ti.bind(text=lambda instance, value, idx=i: self.on_dice_text(instance, value, idx))
             self.dice_inputs.append(ti)
             self.dice_layout.add_widget(ti)
-
-        # Bind text events
-        for i, ti in enumerate(self.dice_inputs):
-            ti.bind(text=lambda instance, value, idx=i: self.on_dice_text(instance, value, idx))
-
         self.foreground_layout.add_widget(self.dice_layout)
 
         # Results label
@@ -102,16 +120,6 @@ class AbilityDiceScreen(Screen):
         self.analyze_btn = Button(text="Analyze")
         self.analyze_btn.bind(on_press=self.analyze_roll)
         self.foreground_layout.add_widget(self.analyze_btn)
-
-        # Add foreground layout to right column
-        self.right_col.add_widget(self.foreground_layout)
-
-        # Add columns to main layout
-        main_layout.add_widget(self.left_col)
-        main_layout.add_widget(self.right_col)
-
-        # Add main layout to the Screen
-        self.add_widget(main_layout)
 
     # ---------------- Methods ----------------
     def on_enter(self, *args):
@@ -126,7 +134,7 @@ class AbilityDiceScreen(Screen):
             ti.text = ""
 
         self.result_label.text = "Results will appear here"
-        self.char_image.source = ""  # clear image
+        self.char_image.source = ""
 
         self.manager.current = 'character_selection'
         self.character_name = None
@@ -154,7 +162,6 @@ class AbilityDiceScreen(Screen):
     def load_abilities(self):
         self.ability_checks.clear()
         self.ability_layout.clear_widgets()
-
         for ability_name in self.character['abilities'].MAP.keys():
             row = BoxLayout(orientation='horizontal', size_hint_y=None, height=30)
             cb = CheckBox()
