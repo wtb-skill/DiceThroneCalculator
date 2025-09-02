@@ -26,9 +26,21 @@ class AbilityDiceScreen(Screen):
         self.left_col = BoxLayout(orientation='vertical', size_hint_x=0.3)
 
         # Back button at top
-        self.back_btn = Button(text="Back")
-        self.back_btn.size_hint_y = None
-        self.back_btn.height = 50
+        images_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'images', 'misc')
+        back_image_file = os.path.join(images_path, 'back_arrow_left_red.png')
+
+        if not os.path.exists(back_image_file):
+            print(f"Warning: back image not found: {back_image_file}")
+            self.back_btn = Button(text="Back")  # fallback
+        else:
+            self.back_btn = Button(
+                background_normal=back_image_file,
+                background_down=back_image_file,
+                size_hint=(None, None),
+                size=(60, 60),
+                border=(0, 0, 0, 0)  # remove default Kivy button borders
+            )
+
         self.back_btn.bind(on_press=self.go_back_to_character_selection)
         self.left_col.add_widget(self.back_btn)
 
