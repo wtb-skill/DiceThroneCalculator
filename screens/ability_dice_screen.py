@@ -31,23 +31,20 @@ class AbilityDiceScreen(Screen):
         # ----- Right Column -----
         self.right_col = BoxLayout(orientation='vertical', size_hint_x=0.7, spacing=10, padding=10)
 
-        # Update back button to handle going back
+        # Back button
         self.back_btn = Button(text="")
         self.back_btn.bind(on_press=self.go_back_to_character_selection)
         self.right_col.add_widget(self.back_btn)
 
-        # Middle: Dice input
+        # Dice input row
         self.dice_layout = BoxLayout(orientation='horizontal', spacing=5)
         self.dice_inputs = []
-
-        if self.dice_inputs:
-            self.dice_inputs[0].focus = True
 
         for _ in range(5):
             ti = TextInput(
                 multiline=False,
                 input_filter='int',
-                halign='center',  # works for horizontal centering
+                halign='center',
                 font_size=32,
                 text_validate_unfocus=False
             )
@@ -63,12 +60,7 @@ class AbilityDiceScreen(Screen):
 
         # Bind for auto-switching
         for i, ti in enumerate(self.dice_inputs):
-            # Limit to one character (1-6)
             ti.bind(text=lambda instance, value, idx=i: self.on_dice_text(instance, value, idx))
-
-        # <-- Set focus on first dice input here, after creating all of them
-        if self.dice_inputs:
-            self.dice_inputs[0].focus = True
 
         # Results display
         self.result_label = Label(text="Results will appear here")
@@ -93,19 +85,15 @@ class AbilityDiceScreen(Screen):
 
     def go_back_to_character_selection(self, instance):
         """Return to character selection screen and clear current data"""
-        # Clear selected abilities
         for cb in self.ability_checks.values():
             cb.active = False
         self.ability_checks.clear()
 
-        # Clear dice inputs
         for ti in self.dice_inputs:
             ti.text = ""
 
-        # Clear results
         self.result_label.text = "Results will appear here"
 
-        # Switch back to character selection screen
         self.manager.current = 'character_selection'
         self.character_name = None
         self.character = None
@@ -119,7 +107,6 @@ class AbilityDiceScreen(Screen):
         self.character_name = char_name
         self.character = CHARACTERS[char_name]
 
-        # Update back button text
         self.back_btn.text = f"Character: {char_name} (Back)"
         self.load_abilities()
 
@@ -137,7 +124,6 @@ class AbilityDiceScreen(Screen):
             self.ability_checks[ability_name] = cb
 
     def analyze_roll(self, instance):
-        """Analyze dice and selected abilities"""
         roll = []
         for ti in self.dice_inputs:
             try:
@@ -157,15 +143,14 @@ class AbilityDiceScreen(Screen):
         keep, prob = AdvisorLogic.compute_best_keep(roll, selected)
         self.result_label.text = f"Best Keep: {keep}\nProbability: {prob:.2%}"
 
-        # Clear dice inputs
+        self._suppress_dice_events = True
         for ti in self.dice_inputs:
             ti.text = ""
+        self._suppress_dice_events = False
 
-        # Refocus first input on next frame
-        Clock.schedule_once(self._focus_first_input, 0)
+        Clock.schedule_once(lambda dt: self._focus_first_input(), 0.2)
 
     def _focus_first_input(self, *args):
-        # force blur others, then focus the first
         for ti in self.dice_inputs:
             ti.focus = False
         if self.dice_inputs:
@@ -175,21 +160,17 @@ class AbilityDiceScreen(Screen):
         """Automatically focus next dice input on valid number,
         enforce single-digit (1-6), and backspace to previous dice if empty.
         """
-        # ignore events during programmatic clears
         if getattr(self, "_suppress_dice_events", False):
             return
 
-        # enforce single digit
         if len(value) > 1:
             instance.text = value[-1]
             value = instance.text
 
-        # only allow 1..6
         if not value.isdigit() or not (1 <= int(value) <= 6):
             instance.text = ""
             return
 
-        # Move focus to next input, or remove focus if this is the last one
         if idx + 1 < len(self.dice_inputs):
             self.dice_inputs[idx + 1].focus = True
         else:
