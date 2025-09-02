@@ -1,4 +1,6 @@
-from kivy.uix.screenmanager import Screen
+# screens/ability_dice_screen.py
+
+from .base_screen import BaseScreen
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.gridlayout import GridLayout
@@ -15,7 +17,7 @@ from data.characters import CHARACTERS
 from logic.queries.advisor_wrapper import AdvisorLogic
 
 
-class AbilityDiceScreen(Screen):
+class AbilityDiceScreen(BaseScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._suppress_dice_events = False
@@ -41,23 +43,26 @@ class AbilityDiceScreen(Screen):
         self.add_widget(main_layout)
 
     def build_left_side(self):
-        """Constructs left column with back button and scrollable abilities"""
         left_col = BoxLayout(orientation='vertical', size_hint_x=0.3)
 
-        # Back button at top
-        back_image_file = os.path.join("images", "misc", "back_arrow_left_red.png")
-        if os.path.exists(back_image_file):
-            self.back_btn = Button(
-                background_normal=back_image_file,
-                background_down=back_image_file,
-                size_hint=(None, None),
-                size=(60, 60),
-                border=(0, 0, 0, 0)
-            )
-        else:
-            self.back_btn = Button(text="Back")
-        self.back_btn.bind(on_press=self.go_back_to_character_selection)
+        # Back button
+        back_image_file = "images/misc/back_arrow_left_red.png"
+        self.back_btn = self.create_button(
+            image=back_image_file,
+            size_hint=(None, None),
+            size=(100, 100)
+        )
+        self.back_btn.bind(on_release=self.go_back_to_character_selection)
         left_col.add_widget(self.back_btn)
+
+        # Scrollable abilities list
+        self.scroll = ScrollView()
+        self.ability_layout = GridLayout(cols=1, size_hint_y=None)
+        self.ability_layout.bind(minimum_height=self.ability_layout.setter('height'))
+        self.scroll.add_widget(self.ability_layout)
+        left_col.add_widget(self.scroll)
+
+        return left_col
 
         # Scrollable abilities list
         self.scroll = ScrollView()
