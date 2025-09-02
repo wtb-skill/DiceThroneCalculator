@@ -184,16 +184,13 @@ class AbilityDiceScreen(Screen):
             instance.text = value[-1]
             value = instance.text
 
-        # backspace to previous
-        if value == "" and idx > 0:
-            self.dice_inputs[idx - 1].focus = True
-            return
-
         # only allow 1..6
         if not value.isdigit() or not (1 <= int(value) <= 6):
             instance.text = ""
             return
 
-        # advance to next
+        # Move focus to next input, or remove focus if this is the last one
         if idx + 1 < len(self.dice_inputs):
             self.dice_inputs[idx + 1].focus = True
+        else:
+            instance.focus = False
