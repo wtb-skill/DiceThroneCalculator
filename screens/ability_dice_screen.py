@@ -6,9 +6,12 @@ from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.checkbox import CheckBox
 from kivy.uix.textinput import TextInput
+from kivy.uix.image import Image
 from data.characters import CHARACTERS
 from logic.queries.advisor_wrapper import AdvisorLogic
 from kivy.clock import Clock
+from kivy.uix.floatlayout import FloatLayout
+import os
 
 
 class AbilityDiceScreen(Screen):
@@ -21,6 +24,15 @@ class AbilityDiceScreen(Screen):
 
         # ----- Left Column: Abilities -----
         self.left_col = BoxLayout(orientation='vertical', size_hint_x=0.3)
+
+        # Back button at top
+        self.back_btn = Button(text="Back")
+        self.back_btn.size_hint_y = None
+        self.back_btn.height = 50
+        self.back_btn.bind(on_press=self.go_back_to_character_selection)
+        self.left_col.add_widget(self.back_btn)
+
+        # Scrollable abilities list
         self.scroll = ScrollView()
         self.ability_layout = GridLayout(cols=1, size_hint_y=None)
         self.ability_layout.bind(minimum_height=self.ability_layout.setter('height'))
@@ -28,18 +40,30 @@ class AbilityDiceScreen(Screen):
         self.left_col.add_widget(self.scroll)
         self.ability_checks = {}
 
-        # ----- Right Column -----
-        self.right_col = BoxLayout(orientation='vertical', size_hint_x=0.7, spacing=10, padding=10)
+        # ----- Right Column: background image + foreground UI -----
+        self.right_col = FloatLayout(size_hint_x=0.7)
 
-        # Back button
-        self.back_btn = Button(text="")
-        self.back_btn.bind(on_press=self.go_back_to_character_selection)
-        self.right_col.add_widget(self.back_btn)
+        # Character background image
+        self.char_image = Image(
+            allow_stretch=True,  # allows scaling
+            keep_ratio=False,  # disables maintaining aspect ratio so it fills container
+            size_hint=(1, 1),  # take full width and height of right_col
+            pos_hint={'x': 0, 'y': 0}  # position at bottom-left corner
+        )
+        self.right_col.add_widget(self.char_image, index=0)  # add at bottom so other widgets are on top
 
-        # Dice input row
+        # Foreground UI container inside right column (anchored at bottom)
+        self.foreground_layout = BoxLayout(
+            orientation='vertical',
+            size_hint=(0.8, None),
+            height=250,
+            spacing=10,
+            pos_hint={'center_x': 0.5, 'y': 0}  # Anchored at bottom now
+        )
+
+        # Dice input layout
         self.dice_layout = BoxLayout(orientation='horizontal', spacing=5)
         self.dice_inputs = []
-
         for _ in range(5):
             ti = TextInput(
                 multiline=False,
@@ -48,28 +72,27 @@ class AbilityDiceScreen(Screen):
                 font_size=32,
                 text_validate_unfocus=False
             )
-            # Center vertically using dynamic padding_y
-            ti.bind(
-                size=lambda inst, val: setattr(
-                    inst, 'padding_y', [(inst.height - inst.line_height) / 2]
-                )
-            )
+            ti.bind(size=lambda inst, val: setattr(inst, 'padding_y', [(inst.height - inst.line_height) / 2]))
             self.dice_inputs.append(ti)
             self.dice_layout.add_widget(ti)
-        self.right_col.add_widget(self.dice_layout)
 
-        # Bind for auto-switching
+        # Bind text events
         for i, ti in enumerate(self.dice_inputs):
             ti.bind(text=lambda instance, value, idx=i: self.on_dice_text(instance, value, idx))
 
-        # Results display
+        self.foreground_layout.add_widget(self.dice_layout)
+
+        # Results label
         self.result_label = Label(text="Results will appear here")
-        self.right_col.add_widget(self.result_label)
+        self.foreground_layout.add_widget(self.result_label)
 
         # Analyze button
         self.analyze_btn = Button(text="Analyze")
         self.analyze_btn.bind(on_press=self.analyze_roll)
-        self.right_col.add_widget(self.analyze_btn)
+        self.foreground_layout.add_widget(self.analyze_btn)
+
+        # Add foreground layout to right column
+        self.right_col.add_widget(self.foreground_layout)
 
         # Add columns to main layout
         main_layout.add_widget(self.left_col)
@@ -80,11 +103,9 @@ class AbilityDiceScreen(Screen):
 
     # ---------------- Methods ----------------
     def on_enter(self, *args):
-        """Called whenever this screen is entered."""
         Clock.schedule_once(self._focus_first_input, 0)
 
     def go_back_to_character_selection(self, instance):
-        """Return to character selection screen and clear current data"""
         for cb in self.ability_checks.values():
             cb.active = False
         self.ability_checks.clear()
@@ -93,13 +114,13 @@ class AbilityDiceScreen(Screen):
             ti.text = ""
 
         self.result_label.text = "Results will appear here"
+        self.char_image.source = ""  # clear image
 
         self.manager.current = 'character_selection'
         self.character_name = None
         self.character = None
 
     def set_character(self, char_name):
-        """Set current character and populate abilities dynamically"""
         if char_name not in CHARACTERS:
             self.result_label.text = f"Character {char_name} not found"
             return
@@ -107,11 +128,18 @@ class AbilityDiceScreen(Screen):
         self.character_name = char_name
         self.character = CHARACTERS[char_name]
 
-        self.back_btn.text = f"Character: {char_name} (Back)"
+        # Load abilities
         self.load_abilities()
 
+        # Update character image
+        img_filename = f"{char_name}_full.jpg"
+        img_path = os.path.join("images", "full_versions", img_filename)
+        if os.path.exists(img_path):
+            self.char_image.source = img_path
+        else:
+            self.char_image.source = ""
+
     def load_abilities(self):
-        """Populate checkboxes based on selected character"""
         self.ability_checks.clear()
         self.ability_layout.clear_widgets()
 
@@ -157,9 +185,6 @@ class AbilityDiceScreen(Screen):
             self.dice_inputs[0].focus = True
 
     def on_dice_text(self, instance, value, idx):
-        """Automatically focus next dice input on valid number,
-        enforce single-digit (1-6), and backspace to previous dice if empty.
-        """
         if getattr(self, "_suppress_dice_events", False):
             return
 

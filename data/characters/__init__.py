@@ -29,12 +29,12 @@ CHARACTERS = {
         "straights": BarbarianStraights,
         "abilities": BarbarianAbilities,
     },
-    "Moon Elf": {
+    "MoonElf": {
         "symbols": MoonElfSymbols,
         "straights": MoonElfStraights,
         "abilities": MoonElfAbilities,
     },
-    "Shadow Thief": {
+    "ShadowThief": {
         "symbols": ShadowThiefSymbols,
         "straights": ShadowThiefStraights,
         "abilities": ShadowThiefAbilities,
