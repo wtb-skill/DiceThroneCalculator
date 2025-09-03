@@ -94,6 +94,7 @@ class CharacterSelectionScreen(BaseScreen):
                 if name.lower().replace(' ', '_') in instance.background_normal
             )
 
+        self.manager.transition.direction = 'left'  # slide left
         ability_screen = self.manager.get_screen('ability_dice')
         ability_screen.set_character(selected_char)
         self.manager.current = 'ability_dice'

@@ -141,6 +141,7 @@ class AbilityDiceScreen(BaseScreen):
         self.result_label.text = "Results will appear here"
         self.char_image.source = ""
 
+        self.manager.transition.direction = 'right'  # slide right
         self.manager.current = 'character_selection'
         self.character_name = None
         self.character = None
